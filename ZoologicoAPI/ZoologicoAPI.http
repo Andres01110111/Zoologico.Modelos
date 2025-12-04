@@ -1,0 +1,6 @@
+@ZoologicoAPI_HostAddress = http://localhost:5090
+
+GET {{ZoologicoAPI_HostAddress}}/weatherforecast/
+Accept: application/json
+
+###
