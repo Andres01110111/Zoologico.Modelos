@@ -1,31 +1,23 @@
-# Consulte https://aka.ms/customizecontainer para aprender a personalizar su contenedor de depuración y cómo Visual Studio usa este Dockerfile para compilar sus imágenes para una depuración más rápida.
-
-# Esta fase se usa cuando se ejecuta desde VS en modo rápido (valor predeterminado para la configuración de depuración)
-FROM mcr.microsoft.com/dotnet/aspnet:8.0 AS base
-USER $APP_UID
-WORKDIR /app
-EXPOSE 8080
-EXPOSE 8081
-
-
-# Esta fase se usa para compilar el proyecto de servicio
+# 1. Usamos la imagen del SDK para construir TODO
 FROM mcr.microsoft.com/dotnet/sdk:8.0 AS build
-ARG BUILD_CONFIGURATION=Release
 WORKDIR /src
-COPY ["ZoologicoAPI/ZoologicoAPI.csproj", "ZoologicoAPI/"]
-COPY ["Zoologico.Modelos/Zoologico.Modelos.csproj", "Zoologico.Modelos/"]
-RUN dotnet restore "./ZoologicoAPI/ZoologicoAPI.csproj"
+
+# 2. Copiamos TODO el repositorio (API y Modelos)
 COPY . .
-WORKDIR "/src/ZoologicoAPI"
-RUN dotnet build "./ZoologicoAPI.csproj" -c $BUILD_CONFIGURATION -o /app/build
 
-# Esta fase se usa para publicar el proyecto de servicio que se copiará en la fase final.
-FROM build AS publish
-ARG BUILD_CONFIGURATION=Release
-RUN dotnet publish "./ZoologicoAPI.csproj" -c $BUILD_CONFIGURATION -o /app/publish /p:UseAppHost=false
+# 3. Restauramos y publicamos ESPECÍFICAMENTE la API
+# Ajusta la ruta si tu carpeta se llama diferente a "ZoologicoAPI"
+RUN dotnet restore "ZoologicoAPI/ZoologicoAPI.csproj"
+RUN dotnet publish "ZoologicoAPI/ZoologicoAPI.csproj" -c Release -o /app/publish
 
-# Esta fase se usa en producción o cuando se ejecuta desde VS en modo normal (valor predeterminado cuando no se usa la configuración de depuración)
-FROM base AS final
+# 4. Imagen final para ejecutar
+FROM mcr.microsoft.com/dotnet/aspnet:8.0
 WORKDIR /app
-COPY --from=publish /app/publish .
+COPY --from=build /app/publish .
+
+# 5. Configuración de puertos para Render
+ENV ASPNETCORE_URLS=http://+:8080
+EXPOSE 8080
+
+# 6. Ejecutar la API
 ENTRYPOINT ["dotnet", "ZoologicoAPI.dll"]
